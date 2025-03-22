@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Terminal - System Status</title>
+    <style>
+        :root {
+            --neon-cyan: #0ff;
+            --neon-magenta: #f0f;
+            --neon-green: #0f0;
+            --dark-bg: #0a0a0f;
+            --terminal-bg: #000510;
+            --terminal-border: #304050;
+            --terminal-text: #c0c8d0;
+            --terminal-header: #0ff;
+            --terminal-success: #0f0;
+            --terminal-error: #f55;
+            --terminal-warning: #ff0;
+            --terminal-highlight: #f0f;
+            --terminal-dim: #607080;
+            --terminal-font: 'Courier New', monospace;
+            --scanline-opacity: 0.15;
+            --glow-strength: 0.5;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--terminal-text);
+            font-family: var(--terminal-font);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            line-height: 1.4;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .terminal {
+            background-color: var(--terminal-bg);
+            border: 1px solid var(--terminal-border);
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .terminal::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                transparent 50%, 
+                rgba(0, 0, 0, var(--scanline-opacity)) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .terminal::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(
+                ellipse at center,
+                rgba(0, 255, 255, 0.1) 0%,
+                rgba(0, 0, 0, 0) 70%
+            );
+            pointer-events: none;
+            z-index: 9;
+        }
+
+        .terminal-header {
+            color: var(--terminal-header);
+            border-bottom: 1px solid var(--terminal-border);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px var(--terminal-header);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-title {
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .terminal-status {
+            font-size: 0.8rem;
+            color: var(--terminal-dim);
+        }
+
+        .terminal-content {
+            position: relative;
+            z-index: 5;
+        }
+
+        .agent-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .agent-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid var(--terminal-border);
+            border-radius: 3px;
+            background-color: rgba(0, 20, 40, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .agent-item:hover {
+            box-shadow: 0 0 10px var(--neon-cyan);
+            border-color: var(--neon-cyan);
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed var(--terminal-border);
+            padding-bottom: 5px;
+        }
+
+        .agent-id {
+            color: var(--neon-cyan);
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+
+        .agent-created {
+            color: var(--terminal-dim);
+            font-size: 0.8rem;
+        }
+
+        .agent-description {
+            margin-bottom: 10px;
+        }
+
+        .agent-details {
+            display: none;
+            background-color: rgba(0, 10, 20, 0.5);
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+        }
+
+        .agent-item.expanded .agent-details {
+            display: block;
+        }
+
+        .detail-section {
+            margin-bottom: 15px;
+        }
+
+        .detail-header {
+            color: var(--neon-magenta);
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 0, 255, 0.5);
+        }
+
+        .detail-content {
+            padding-left: 10px;
+            border-left: 2px solid var(--terminal-border);
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .tool-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .tool-item {
+            margin-bottom: 5px;
+            padding: 5px;
+            background-color: rgba(0, 30, 60, 0.3);
+            border-radius: 3px;
+        }
+
+        .tool-name {
+            color: var(--neon-green);
+            font-weight: bold;
+        }
+
+        .tool-id {
+            color: var(--terminal-dim);
+            font-size: 0.8rem;
+        }
+
+        .terminal-input {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .prompt {
+            color: var(--neon-green);
+            margin-right: 10px;
+        }
+
+        #command-input {
+            background-color: transparent;
+            border: none;
+            color: var(--terminal-text);
+            font-family: var(--terminal-font);
+            font-size: 1rem;
+            flex-grow: 1;
+            outline: none;
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .loading {
+            display: inline-block;
+            position: relative;
+            width: 80px;
+            height: 20px;
+        }
+
+        .loading div {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            animation: loading 1.2s linear infinite;
+        }
+
+        .loading div:nth-child(1) {
+            animation-delay: 0s;
+            left: 8px;
+        }
+
+        .loading div:nth-child(2) {
+            animation-delay: 0.2s;
+            left: 32px;
+        }
+
+        .loading div:nth-child(3) {
+            animation-delay: 0.4s;
+            left: 56px;
+        }
+
+        @keyframes loading {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.5); }
+        }
+
+        .terminal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .terminal-button {
+            background-color: rgba(0, 30, 60, 0.5);
+            border: 1px solid var(--terminal-border);
+            color: var(--terminal-text);
+            padding: 8px 15px;
+            font-family: var(--terminal-font);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        .terminal-button:hover {
+            background-color: rgba(0, 60, 120, 0.5);
+            box-shadow: 0 0 10px var(--neon-cyan);
+            color: var(--neon-cyan);
+        }
+
+        .no-agents {
+            text-align: center;
+            padding: 30px;
+            color: var(--terminal-dim);
+            font-style: italic;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--terminal-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--terminal-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-cyan);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 10px;
+            }
+            
+            .terminal-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .terminal-status {
+                margin-top: 5px;
+            }
+            
+            .agent-header {
+                flex-direction: column;
+            }
+            
+            .agent-created {
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="terminal">
+            <div class="terminal-header">
+                <div class="terminal-title">AGENT TERMINAL v1.0</div>
+                <div class="terminal-status">
+                    <span id="status-text">SYSTEM ONLINE</span>
+                    <span id="current-time"></span>
+                </div>
+            </div>
+            
+            <div class="terminal-content">
+                <div class="terminal-buttons">
+                    <button class="terminal-button" id="refresh-button">Refresh Data</button>
+                    <button class="terminal-button" id="expand-all-button">Expand All</button>
+                    <button class="terminal-button" id="collapse-all-button">Collapse All</button>
+                </div>
+                
+                <div id="loading-container" style="display: none; text-align: center; margin: 20px 0;">
+                    <div class="loading"><div></div><div></div><div></div></div>
+                    <div>Accessing neural network...</div>
+                </div>
+                
+                <ul class="agent-list" id="agent-list">
+                    <!-- Agent items will be populated here -->
+                </ul>
+                
+                <div id="no-agents" class="no-agents" style="display: none;">
+                    No agents found in the system.
+                </div>
+                
+                <div class="terminal-input">
+                    <span class="prompt">root@cybersys:~$</span>
+                    <input type="text" id="command-input" placeholder="Type a command..." autocomplete="off">
+                    <span class="blink">_</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update current time
+            function updateTime() {
+                const now = new Date();
+                const timeString = now.toISOString().replace('T', ' ').substring(0, 19);
+                document.getElementById('current-time').textContent = timeString;
+            }
+            
+            setInterval(updateTime, 1000);
+            updateTime();
+            
+            // Fetch agent data
+            function fetchAgents() {
+                document.getElementById('loading-container').style.display = 'block';
+                document.getElementById('agent-list').innerHTML = '';
+                document.getElementById('no-agents').style.display = 'none';
+                
+                fetch('/api/agents')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        document.getElementById('loading-container').style.display = 'none';
+                        
+                        // Ensure data is an array
+                        const agents = Array.isArray(data) ? data : [];
+                        
+                        if (agents.length === 0) {
+                            document.getElementById('no-agents').style.display = 'block';
+                            return;
+                        }
+                        
+                        const agentList = document.getElementById('agent-list');
+                        
+                        agents.forEach(agent => {
+                            const agentItem = document.createElement('li');
+                            agentItem.className = 'agent-item';
+                            agentItem.dataset.agentId = agent.id;
+                            
+                            const createdDate = new Date(agent.created_at).toLocaleString();
+                            
+                            agentItem.innerHTML = `
+                                <div class="agent-header">
+                                    <div class="agent-id">${agent.id}</div>
+                                    <div class="agent-created">Created: ${createdDate}</div>
+                                </div>
+                                <div class="agent-description">${agent.description || 'No description available'}</div>
+                                <div class="agent-details">
+                                    <div class="detail-section">
+                                        <div class="detail-header">System Prompt</div>
+                                        <div class="detail-content">${agent.base_system_prompt || 'None'}</div>
+                                    </div>
+                                    
+                                    <div class="detail-section">
+                                        <div class="detail-header">Next Instruction</div>
+                                        <div class="detail-content">${agent.next_instruction || 'None'}</div>
+                                    </div>
+                                    
+                                    <div class="detail-section">
+                                        <div class="detail-header">Models</div>
+                                        <div class="detail-content">
+                                            LLM: ${agent.llm_model || 'Not specified'}<br>
+                                            Embedding: ${agent.embedding_model || 'Not specified'}<br>
+                                            Vision: ${agent.vision_model || 'Not specified'}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="detail-section">
+                                        <div class="detail-header">Available Tools</div>
+                                        <div class="detail-content" id="tools-${agent.id}">Loading tools...</div>
+                                    </div>
+                                    
+                                    <div class="detail-section">
+                                        <div class="detail-header">App Keys</div>
+                                        <div class="detail-content" id="app-keys-${agent.id}">Loading app keys...</div>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            agentList.appendChild(agentItem);
+                            
+                            // Fetch additional details for this agent
+                            fetch(`/api/agent/${agent.id}/details`)
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error(`HTTP error! Status: ${response.status}`);
+                                    }
+                                    return response.json();
+                                })
+                                .then(details => {
+                                    // Populate tools
+                                    const toolsContainer = document.getElementById(`tools-${agent.id}`);
+                                    if (details.available_tools && details.available_tools.length > 0) {
+                                        const toolsList = document.createElement('ul');
+                                        toolsList.className = 'tool-list';
+                                        
+                                        details.available_tools.forEach(tool => {
+                                            const toolItem = document.createElement('li');
+                                            toolItem.className = 'tool-item';
+                                            toolItem.innerHTML = `
+                                                <span class="tool-name">${tool.name || 'Unnamed Tool'}</span>
+                                                <span class="tool-id">${tool.toolset_id || 'No toolset ID'}</span>
+                                            `;
+                                            toolsList.appendChild(toolItem);
+                                        });
+                                        
+                                        toolsContainer.innerHTML = '';
+                                        toolsContainer.appendChild(toolsList);
+                                    } else {
+                                        toolsContainer.textContent = 'No tools available';
+                                    }
+                                    
+                                    // Populate app keys
+                                    const appKeysContainer = document.getElementById(`app-keys-${agent.id}`);
+                                    if (details.app_keys && Object.keys(details.app_keys).length > 0) {
+                                        let appKeysHtml = '';
+                                        for (const [key, value] of Object.entries(details.app_keys)) {
+                                            appKeysHtml += `${key}: ${value}<br>`;
+                                        }
+                                        appKeysContainer.innerHTML = appKeysHtml;
+                                    } else {
+                                        appKeysContainer.textContent = 'No app keys configured';
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error(`Error fetching details for agent ${agent.id}:`, error);
+                                    document.getElementById(`tools-${agent.id}`).textContent = 'Error loading tools';
+                                    document.getElementById(`app-keys-${agent.id}`).textContent = 'Error loading app keys';
+                                });
+                        });
+                        
+                        // Add click event to expand/collapse agent details
+                        document.querySelectorAll('.agent-item').forEach(item => {
+                            item.addEventListener('click', function() {
+                                this.classList.toggle('expanded');
+                            });
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching agents:', error);
+                        document.getElementById('loading-container').style.display = 'none';
+                        document.getElementById('no-agents').style.display = 'block';
+                        document.getElementById('no-agents').textContent = 'Error loading agents: ' + error.message;
+                    });
+            }
+            
+            // Initial fetch
+            fetchAgents();
+            
+            // Refresh button
+            document.getElementById('refresh-button').addEventListener('click', fetchAgents);
+            
+            // Expand all button
+            document.getElementById('expand-all-button').addEventListener('click', function() {
+                document.querySelectorAll('.agent-item').forEach(item => {
+                    item.classList.add('expanded');
+                });
+            });
+            
+            // Collapse all button
+            document.getElementById('collapse-all-button').addEventListener('click', function() {
+                document.querySelectorAll('.agent-item').forEach(item => {
+                    item.classList.remove('expanded');
+                });
+            });
+            
+            // Command input handling
+            const commandInput = document.getElementById('command-input');
+            commandInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    const command = this.value.trim().toLowerCase();
+                    this.value = '';
+                    
+                    // Simple command handling
+                    if (command === 'help') {
+                        alert('Available commands:\nhelp - Show this help\nrefresh - Refresh agent data\nexpand - Expand all agents\ncollapse - Collapse all agents');
+                    } else if (command === 'refresh') {
+                        fetchAgents();
+                    } else if (command === 'expand') {
+                        document.getElementById('expand-all-button').click();
+                    } else if (command === 'collapse') {
+                        document.getElementById('collapse-all-button').click();
+                    } else if (command.startsWith('view ')) {
+                        const agentId = command.substring(5).trim();
+                        const agentItem = document.querySelector(`.agent-item[data-agent-id="${agentId}"]`);
+                        if (agentItem) {
+                            agentItem.classList.add('expanded');
+                            agentItem.scrollIntoView({ behavior: 'smooth' });
+                        } else {
+                            alert(`Agent with ID ${agentId} not found`);
+                        }
+                    } else {
+                        alert(`Unknown command: ${command}\nType 'help' for available commands`);
+                    }
+                }
+            });
+            
+            // Add some terminal effects
+            function addRandomGlitch() {
+                const terminal = document.querySelector('.terminal');
+                terminal.style.transform = `translateX(${Math.random() * 2 - 1}px)`;
+                setTimeout(() => {
+                    terminal.style.transform = 'translateX(0)';
+                }, 100);
+            }
+            
+            setInterval(addRandomGlitch, 5000 + Math.random() * 10000);
+        });
+    </script>
+</body>
+</html>

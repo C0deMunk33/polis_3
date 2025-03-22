@@ -1,0 +1,21 @@
+[project]
+name = "polis-3"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "pydantic (>=2.10.6,<3.0.0)",
+    "ollama (>=0.4.7,<0.5.0)",
+    "requests (>=2.32.3,<3.0.0)",
+    "sqlmodel (>=0.0.24,<0.0.25)",
+    "chromadb (>=0.6.3,<0.7.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

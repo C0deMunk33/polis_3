@@ -1,0 +1,12 @@
+# Extract memories:
+# ask llm to pull out anything worth saving from the conversation
+# chunk and embed, save to chromadb
+# extract relationship information save to knowledge graph
+# save memory along with timestamp and source
+
+# Search memories:
+# generate search queries for vector db and knowledge graph
+# search vector db and knowledge graph
+# mark useful memories
+# more queries?
+# summarize memories
