@@ -84,7 +84,7 @@ class Chat(AgentInterface):
         """
         with Session(self.chat_vector_storage.sqlite_engine) as session:
             messages = session.exec(select(ChatMessageDBO).order_by(ChatMessageDBO.created_at.desc()).offset(offset).limit(limit)).all()
-            messages_str = f"Chat History:\n"
+            messages_str = f"Agent Chat History:\n"
             # step backwards through the messages
             for i in range(len(messages) - 1, -1, -1):
                 message = messages[i]

@@ -234,7 +234,8 @@ class Agent:
                  post_inference_tool_calls: List[ToolCall],
                  initial_instruction: str,
                  app_keys: Dict[str, str],
-                 init_keys: Dict[str, str]):
+                 init_keys: Dict[str, str],
+                 id: Optional[str] = None):
         
         self.chroma_db_path = "chroma_db.db"
         self.sqlite_db_path = "sqlite_db.db"
@@ -253,7 +254,10 @@ class Agent:
                 self.persona_name = init_keys["persona_name"]
             if "persona_description" in init_keys:
                 self.persona_description = init_keys["persona_description"]
+        
         self.state = AgentStateDBO.new_agent_state(base_system_prompt)
+        if id is not None:
+            self.state.id = id
         self.app_manager = AppManager()   
         self.state.llm_server_url = llm_server_url
         self.state.llm_model = llm_model

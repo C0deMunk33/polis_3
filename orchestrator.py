@@ -4,8 +4,15 @@ from tools.chat import Chat
 from tools.persona import Persona
 from libs.agent import Agent
 from libs.common import ToolCall
+from tools.discord_manager import DiscordManagerInterface
 from tools.slop import SLOP
 import time
+import os
+import dotenv
+import random
+
+dotenv.load_dotenv()
+
 def main():
 
     chromadb_path = "chroma_db.db"
@@ -33,7 +40,7 @@ def main():
     - be as detailed as possible in your instructions to yourself."""
 
     initial_instruction="Figure it out. try chatting."
-    number_of_agents = 20
+    number_of_agents = 3
 
 
     
@@ -79,6 +86,7 @@ def main():
     # get number of agents agent ids from the database randomly
     agent_ids = Agent.get_agent_ids(init_keys, number_of_agents)
     
+    oracle_idx = random.randint(0, number_of_agents - 1)
 
     for i in range(number_of_agents):
         app_keys = {}
@@ -135,6 +143,68 @@ def main():
         # save the agent state
         agent.save_state()
     
+    discord_init_keys = {
+        "app_id": os.getenv("DISCORD_APP_ID"),
+        "public_key": os.getenv("DISCORD_PUBLIC_KEY"),
+        "token": os.getenv("DISCORD_TOKEN")
+    }
+
+    liason_pre_inference_tool_calls = [
+        ToolCall(
+            toolset_id="memory_manager",
+            name="get_recent_contextual_summaries",
+            arguments={}
+        ),
+        ToolCall(
+            toolset_id="chat",
+            name="read_chat",
+            arguments={
+                "limit": 20,
+                "offset": 0
+            }
+        ),
+        ToolCall(
+            toolset_id="discord_manager",
+            name="read_discord_messages",
+            arguments={
+                "channel_id": "1067898719267201118",
+                "limit": 20,
+                "offset": 0
+            }
+        )
+    ] 
+
+    liason_apps = [
+        Chat(init_keys=init_keys),
+        MemoryManager(init_keys=init_keys),
+        DiscordManagerInterface(init_keys=discord_init_keys)
+    ]
+    liasion = Agent(
+        id="liasion",
+        llm_server_url=ollama_server,
+        llm_model=llm_model,
+        embedding_model=embedding_model,
+        initial_instruction="You are a liasion for the agents. You are responsible for coordinating the agents and ensuring they are working together to achieve the goal. And communicating with the community on discord. You are the bridge between the agents and the community.",
+        vision_model=vision_model,
+        base_system_prompt="""You are Liasion. You have access to tools for an internal multi-agent chat, as well as tools for interacting with discord.
+        You are the only agent with discord access, so it is up to you to relay information between the agent chat and the discord community.""",
+        apps=liason_apps,
+        pre_inference_tool_calls=liason_pre_inference_tool_calls,
+        post_inference_tool_calls=initial_post_inference_tool_calls,
+        app_keys={},
+        init_keys=init_keys
+    )
+    liasion.app_manager.load_app(liasion.state, "chat")
+    liasion.app_manager.load_app(liasion.state, "discord_manager")
+    liasion.app_manager.run_tool(
+        ToolCall(
+            toolset_id="discord_manager",
+            name="start_discord_bot",
+            arguments={}
+        ), liasion.state
+    )
+    liasion.save_state()
+    agents.append(liasion)
 
     pass_count = 0
     while True:
