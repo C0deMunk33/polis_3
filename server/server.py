@@ -78,6 +78,9 @@ async def agent_state_page():
 @app.post("/api/messages", response_model=MessageResponse)
 async def send_message(message_request: MessageRequest):
     try:
+        # Check if database exists and reinitialize chat if needed
+        ensure_chat_instance()
+        
         # Send message using the chat tool
         chat_instance.send_message(
             agent_state=dummy_agent_state,
@@ -108,6 +111,9 @@ async def send_message(message_request: MessageRequest):
 @app.get("/api/messages", response_model=List[MessageResponse])
 async def get_messages(limit: int = 10, offset: int = 0):
     try:
+        # Check if database exists and reinitialize chat if needed
+        ensure_chat_instance()
+        
         with Session(chat_instance.chat_vector_storage.sqlite_engine) as session:
             messages = session.exec(
                 select(ChatMessageDBO)
@@ -130,6 +136,11 @@ async def get_messages(limit: int = 10, offset: int = 0):
 @app.get("/api/chat_history")
 async def get_chat_history(limit: int = 10, offset: int = 0):
     try:
+        # Check if database exists and reinitialize chat if needed
+        if not os.path.exists(sqlite_path):
+            global chat_instance
+            chat_instance = Chat(init_keys=init_keys)
+            
         # Use the read_chat method from the Chat class
         history = chat_instance.read_chat(
             agent_state=dummy_agent_state,
@@ -139,6 +150,12 @@ async def get_chat_history(limit: int = 10, offset: int = 0):
         return {"history": history}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Add a function to check and reinitialize chat if database is missing
+def ensure_chat_instance():
+    global chat_instance
+    if not os.path.exists(sqlite_path):
+        chat_instance = Chat(init_keys=init_keys)
 
 # New endpoints for agent state UI
 @app.get("/api/agents", response_model=List[AgentResponse])

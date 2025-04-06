@@ -40,7 +40,7 @@ def main():
     - be as detailed as possible in your instructions to yourself."""
 
     initial_instruction="Figure it out. try chatting."
-    number_of_agents = 3
+    number_of_agents = 20
 
 
     
@@ -98,10 +98,12 @@ def main():
             persona,
             SLOP(init_keys={"server_url": "https://slop.unturf.com", 
                             "server_name": "slop_1",
-                            "description": "An app filled with random tools"})
+                            "description": "An app filled with random tools",
+                            "expose": ["slots", "blackjack"]})
         ]
 
         agent = Agent(
+            id=f"agent_{i}",
             llm_server_url=ollama_server,
             llm_model=llm_model,
             embedding_model=embedding_model,
@@ -127,6 +129,10 @@ def main():
             print("Creating persona")
             print("="*100)
             persona.create_persona_from_random_demographic_seed(agent.state)
+            agent.state.app_keys = {
+                "persona_id": persona.current_persona.id
+            }
+            agent.save_state()
         print("="*100)
         print(persona.current_persona)
         print("="*100)

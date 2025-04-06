@@ -115,9 +115,29 @@ class VectorStorage(Generic[T]):
         # 1. Store in SQLite (if model is SQLModel)
         if issubclass(self.model_class, SQLModel):
             with Session(self.sqlite_engine) as session:
-                session.add(model_item)
+                # Check if record exists by ID
+                pk_value = getattr(model_item, self.id_field)
+                existing = None
+                if pk_value:
+                    existing = session.get(self.model_class, pk_value)
+                    
+                if existing:
+                    # Update existing record with new values
+                    for key, value in item_dict.items():
+                        if key != self.id_field:  # Don't update primary key
+                            setattr(existing, key, value)
+                    # No need to add existing again as it's already tracked
+                else:
+                    # Add new record
+                    session.add(model_item)
+                    
                 session.commit()
-                session.refresh(model_item)
+                
+                # Refresh the appropriate object
+                if existing:
+                    session.refresh(existing)
+                else:
+                    session.refresh(model_item)
         
         # 2. Generate embedding and store in ChromaDB
         embedding = embed_for_nomic_storage(self.ollama_server, text_to_embed)

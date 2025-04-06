@@ -13,6 +13,12 @@ class SLOP(AgentInterface):
         else:
             raise ValueError("server_url is required")
         
+        # init key could contain expose
+        if "expose" in init_keys:
+            self.expose = init_keys["expose"]
+        else:
+            self.expose = []
+
         # init key should contain the server name, which will be used for the toolset id
         if "server_name" in init_keys:
             self.server_name = init_keys["server_name"]
@@ -33,12 +39,17 @@ class SLOP(AgentInterface):
         # iterate over the tools and create a ToolSchema for each one
         self.tool_schemas = []
         for tool in response.json()["tools"]:
+            if tool["id"] in self.expose:
+                expose_to_agent = True
+            else:
+                expose_to_agent = False
+
             self.tool_schemas.append(ToolSchema(
                 toolset_id=self.server_name,
                 name=tool["id"], 
                 description=tool["description"], 
                 is_long_running=False, 
-                expose_to_agent=True, 
+                expose_to_agent=expose_to_agent, 
                 arguments=tool["arguments"]
             ))
 
@@ -50,9 +61,19 @@ class SLOP(AgentInterface):
 
     def agent_tool_callback(self, agent_state: AgentStateDBO, tool_call: ToolCall) -> ToolCallResult:
         # call self.server_url/tools/{tool_call.name} with the tool_call.arguments as the body
-        response = requests.post(f"{self.server_url}/tools/{tool_call.name}", json=tool_call.arguments)
-        response_json = response.json()
-        if "result" in response_json:
-            return ToolCallResult(toolset_id=self.server_name, tool_call=tool_call, result=str(response_json["result"]))
+        if tool_call.name in self.expose:
+            response = requests.post(f"{self.server_url}/tools/{tool_call.name}", json=tool_call.arguments)
+            response_json = response.json()
+
+            print("~~~~~~~~~~~~~ tool call result")
+            print(response_json)
+            print("~~~~~~~~~~~~~")
+
+            if "result" in response_json:
+                    return ToolCallResult(toolset_id=self.server_name, tool_call=tool_call, result=str(response_json["result"]))
+            elif "error" in response_json:
+                return ToolCallResult(toolset_id=self.server_name, tool_call=tool_call, result=str(response_json["error"]))
+            else:
+                return ToolCallResult(toolset_id=self.server_name, tool_call=tool_call, result=str(response_json))
         else:
-            return ToolCallResult(toolset_id=self.server_name, tool_call=tool_call, result=str(response_json["error"]))
+            return ToolCallResult(toolset_id=self.server_name, tool_call=tool_call, result="Tool not exposed")
