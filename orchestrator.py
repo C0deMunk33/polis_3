@@ -173,12 +173,12 @@ def main():
             toolset_id="discord_manager",
             name="read_discord_messages",
             arguments={
-                "channel_id": "1067898719267201118",
+                "channel_id": "1358455325421998233",
                 "limit": 20,
                 "offset": 0
             }
         )
-    ] 
+    ]
 
     liason_apps = [
         Chat(init_keys=init_keys),
