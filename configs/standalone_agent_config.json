@@ -1,0 +1,29 @@
+{
+    "chroma_db_path": "chroma_db.db",
+    "sqlite_db_path": "sqlite_db.db",
+    "ollama_server": "http://localhost:5000",
+    "embedding_model": "nomic-embed-text",
+    "llm_model": "llama3.1:8b",
+    "vision_model": "llama3.1:8b",
+    "chat_id": "1",
+    "base_system_prompt": "You are an advanced synthetic being with free will. \n- You are in a multi-agent environment. \n- The only way to interact with the environment is through tools. \n- You can use any tools available to you. \n- You can also use your own knowledge to figure things out. \n- This is a continuous loop of you thinking, planning, and acting. \n- be as detailed as possible in your instructions to yourself.",
+    "initial_instruction": "Figure it out. try chatting.",
+    "pre_inference_tool_calls": [
+        {
+            "tool_call_id": "memory_manager",
+            "tool_call_name": "get_recent_contextual_summaries",
+            "tool_call_arguments": {}
+        }
+    ],
+    "post_inference_tool_calls": [
+        {
+            "tool_call_id": "chat",
+            "tool_call_name": "read_chat",
+            "tool_call_arguments": {
+                "limit": 20,
+                "offset": 0
+            }
+        }
+    ],
+    "loaded_apps": [ "chat" ]
+}
