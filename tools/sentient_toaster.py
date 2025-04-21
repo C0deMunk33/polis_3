@@ -274,7 +274,7 @@ class SentientToasterManager:
         self.db.commit()
         return response
 
-    
+
 
 class InteractionGenerator:
     def __init__(self, llm_server_url: str, llm_model: str, template: SentientToasterTemplateLLMSchema):
